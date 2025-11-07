@@ -1,6 +1,6 @@
 [project]
 name = "renumics-spotlight"
-dynamic = ["version"]
+version = "1.7.1+custom"
 description = "Visualize and maintain datasets to develop and understand data-driven algorithms."
 homepage = "https://spotlight.renumics.com/"
 documentation = "https://spotlight.renumics.com/"
@@ -83,7 +83,7 @@ dependencies = [
     "pydantic-settings (>=2.0.0,<3.0.0)",
     "transformers",
     "packaging",
-    "pyarrow"
+    "pyarrow",
 ]
 
 [project.optional-dependencies]
@@ -129,29 +129,9 @@ playbook = [
     "torch (>=2.0.0)"
 ]
 
-[tool.poetry]
-packages = [{ include = "renumics", from = "." }]
-exclude = []
-version = "0.0.0"
-
-[[tool.poetry.source]]
-name = "torch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
-
-[tool.poetry.group.dev.dependencies]
-torch = {source = "torch-cpu"}
-
-[tool.poetry.group.playbook.dependencies]
-torch = {source = "torch-cpu"}
-
-[tool.poetry-dynamic-versioning]
-enable = true
-vcs = "git"
-style = "semver"
-
-[tool.poetry-dynamic-versioning.substitution]
-files = ["renumics/spotlight/__version__.py"]
+[tool.uv.build-backend]
+module-root = ""  # Package is at project root, not in src/
+module-name = "renumics"  # Actual package name (not normalized version)
 
 [tool.ruff.lint]
 extend-select = ["I"]
@@ -194,5 +174,5 @@ ignore_missing_imports = true
 ignore = ["W002"]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
+requires = ["uv_build>=0.9.6,<0.10.0"]
+build-backend = "uv_build"

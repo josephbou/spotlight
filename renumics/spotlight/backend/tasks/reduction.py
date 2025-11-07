@@ -2,13 +2,19 @@
 Taks for dimensionality reduction
 """
 
+import hashlib
+import json
+import logging
 from typing import List, Tuple, cast
 
 import numpy as np
 import pandas as pd
 
 from renumics.spotlight import dtypes
+from renumics.spotlight.cache import reduction_cache
 from renumics.spotlight.data_store import DataStore
+
+logger = logging.getLogger(__name__)
 
 SEED = 42
 
@@ -51,7 +57,8 @@ def align_data(
         elif dtypes.is_category_dtype(dtype):
             na_mask = np.array(column_values) == -1
             one_hot_values = preprocessing.label_binarize(
-                column_values, classes=sorted(set(column_values).difference({-1}))  # type: ignore
+                column_values,
+                classes=sorted(set(column_values).difference({-1})),  # type: ignore
             ).astype(float)
             one_hot_values[na_mask] = np.nan
             aligned_values.append(one_hot_values)
@@ -65,6 +72,46 @@ def align_data(
     data = np.hstack([col.reshape((len(indices), -1)) for col in aligned_values])
     mask = ~pd.isna(data).any(axis=1)
     return data[mask], (np.array(indices)[mask]).tolist()
+
+
+def compute_cache_key(
+    data_store_uid: str,
+    generation_id: int,
+    column_names: List[str],
+    indices: List[int],
+    method: str,
+    **kwargs: object,
+) -> str:
+    """
+    Generate stable cache key for reduction computation.
+
+    Args:
+        data_store_uid: Unique identifier for dataset
+        generation_id: Dataset version/generation
+        column_names: Columns used for reduction
+        indices: Row indices (will be sorted for stability)
+        method: "umap" or "pca"
+        **kwargs: Method-specific params (n_neighbors, metric, min_dist for UMAP;
+                  normalization for PCA)
+
+    Returns:
+        64-character hex string (SHA256)
+    """
+    # Create stable representation
+    cache_params = {
+        "uid": data_store_uid,
+        "generation_id": generation_id,
+        "columns": sorted(column_names),  # Sort for stability
+        "indices": sorted(indices),  # Sort for stability
+        "method": method,
+        **kwargs,  # Unpack method-specific params
+    }
+
+    # JSON with sorted keys for stability
+    params_json = json.dumps(cache_params, sort_keys=True)
+
+    # SHA256 hash
+    return hashlib.sha256(params_json.encode()).hexdigest()
 
 
 def compute_umap(
@@ -130,3 +177,111 @@ def compute_pca(
     # `fit_transform` returns Fortran-ordered array.
     embeddings = np.ascontiguousarray(reducer.fit_transform(data))
     return embeddings, indices
+
+
+def compute_umap_cached(
+    data_store: DataStore,
+    column_names: List[str],
+    indices: List[int],
+    n_neighbors: int,
+    metric: str,
+    min_dist: float,
+) -> Tuple[np.ndarray, List[int]]:
+    """
+    Compute UMAP with caching.
+
+    Args:
+        data_store: DataStore instance
+        column_names: Columns to reduce
+        indices: Row indices to include
+        n_neighbors: Number of neighbors for UMAP
+        metric: Distance metric
+        min_dist: Minimum distance for UMAP
+
+    Returns:
+        Tuple of (embeddings, valid_indices)
+    """
+    # Generate cache key
+    cache_key = compute_cache_key(
+        data_store_uid=data_store.uid,
+        generation_id=data_store.generation_id,
+        column_names=column_names,
+        indices=indices,
+        method="umap",
+        n_neighbors=n_neighbors,
+        metric=metric,
+        min_dist=round(min_dist, 3),  # Avoid float precision issues
+    )
+
+    # Check cache
+    cached_result = reduction_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(
+            f"UMAP cache hit for {len(indices)} rows, "
+            f"{len(column_names)} columns, key={cache_key[:8]}..."
+        )
+        return cached_result
+
+    # Compute if not cached
+    logger.debug(
+        f"UMAP cache miss - computing for {len(indices)} rows, "
+        f"{len(column_names)} columns, key={cache_key[:8]}..."
+    )
+    result = compute_umap(
+        data_store, column_names, indices, n_neighbors, metric, min_dist
+    )
+
+    # Store in cache
+    reduction_cache[cache_key] = result
+
+    return result
+
+
+def compute_pca_cached(
+    data_store: DataStore,
+    column_names: List[str],
+    indices: List[int],
+    normalization: str,
+) -> Tuple[np.ndarray, List[int]]:
+    """
+    Compute PCA with caching.
+
+    Args:
+        data_store: DataStore instance
+        column_names: Columns to reduce
+        indices: Row indices to include
+        normalization: Normalization method (none, standardize, robust standardize)
+
+    Returns:
+        Tuple of (embeddings, valid_indices)
+    """
+    # Generate cache key
+    cache_key = compute_cache_key(
+        data_store_uid=data_store.uid,
+        generation_id=data_store.generation_id,
+        column_names=column_names,
+        indices=indices,
+        method="pca",
+        normalization=normalization,
+    )
+
+    # Check cache
+    cached_result = reduction_cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(
+            f"PCA cache hit for {len(indices)} rows, "
+            f"{len(column_names)} columns, key={cache_key[:8]}..."
+        )
+        return cached_result
+
+    # Compute if not cached
+    logger.debug(
+        f"PCA cache miss - computing for {len(indices)} rows, "
+        f"{len(column_names)} columns, key={cache_key[:8]}..."
+    )
+    result = compute_pca(data_store, column_names, indices, normalization)
+
+    # Store in cache
+    reduction_cache[cache_key] = result
+
+    return result

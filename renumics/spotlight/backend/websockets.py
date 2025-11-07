@@ -26,7 +26,7 @@ from renumics.spotlight.data_store import DataStore
 
 from .exceptions import GenerationIDMismatch, Problem
 from .tasks import TaskCancelled, TaskManager
-from .tasks.reduction import compute_pca, compute_umap
+from .tasks.reduction import compute_pca_cached, compute_umap_cached
 
 
 class Message(BaseModel):
@@ -249,7 +249,7 @@ class WebsocketManager:
             callback(len(self.connections))
 
 
-TASK_FUNCS = {"umap": compute_umap, "pca": compute_pca}
+TASK_FUNCS = {"umap": compute_umap_cached, "pca": compute_pca_cached}
 
 
 @message_handler("task", TaskData)

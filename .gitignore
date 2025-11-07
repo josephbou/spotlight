@@ -21,6 +21,9 @@ __pycache__/
 .ruff_cache/
 .ipynb_checkpoints/
 
+# UV
+uv.lock
+
 # Spotlight licenses
 *.key
 
@@ -57,3 +60,5 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+.serena/
