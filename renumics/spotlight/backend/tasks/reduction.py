@@ -73,7 +73,7 @@ def align_data(
 
 
 def compute_cache_key(
-    data_store_uid: str,
+    embedding_sample: np.ndarray,
     generation_id: int,
     column_names: List[str],
     indices: List[int],
@@ -84,7 +84,7 @@ def compute_cache_key(
     Generate stable cache key for reduction computation.
 
     Args:
-        data_store_uid: Unique identifier for dataset
+        embedding_sample: First embedding of the data store
         generation_id: Dataset version/generation
         column_names: Columns used for reduction
         indices: Row indices (will be sorted for stability)
@@ -97,7 +97,7 @@ def compute_cache_key(
     """
     # Create stable representation
     cache_params = {
-        "uid": data_store_uid,
+        "embedding_sample": embedding_sample.tolist(),
         "generation_id": generation_id,
         "columns": sorted(column_names),  # Sort for stability
         "indices": sorted(indices),  # Sort for stability
@@ -216,7 +216,7 @@ def compute_umap_cached(
     """
     # Generate cache key
     cache_key = compute_cache_key(
-        data_store_uid=data_store.uid,
+        embedding_sample=data_store.get_converted_value(column_names[0], 0),
         generation_id=data_store.generation_id,
         column_names=column_names,
         indices=indices,
@@ -270,7 +270,7 @@ def compute_pca_cached(
     """
     # Generate cache key
     cache_key = compute_cache_key(
-        data_store_uid=data_store.uid,
+        embedding_sample=data_store.get_converted_value(column_names[0], 0),
         generation_id=data_store.generation_id,
         column_names=column_names,
         indices=indices,
