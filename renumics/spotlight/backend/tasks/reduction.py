@@ -4,7 +4,6 @@ Taks for dimensionality reduction
 
 import hashlib
 import json
-import logging
 from typing import List, Tuple, cast
 
 import numpy as np
@@ -13,8 +12,7 @@ import pandas as pd
 from renumics.spotlight import dtypes
 from renumics.spotlight.cache import reduction_cache
 from renumics.spotlight.data_store import DataStore
-
-logger = logging.getLogger(__name__)
+from renumics.spotlight.logging import logger
 
 SEED = 42
 
@@ -126,12 +124,16 @@ def compute_umap(
     Prepare data from table and compute U-Map on them.
     """
 
+    logger.debug("Aligning data for UMAP computation...")
     data, indices = align_data(data_store, column_names, indices)
 
     if data.size == 0:
         return np.empty(0, np.float64), []
 
     from sklearn import preprocessing
+
+    if metric in ("standardized euclidean", "robust euclidean"):
+        logger.debug(f"Preprocessing data for {metric} metric...")
 
     if metric == "standardized euclidean":
         data = preprocessing.StandardScaler(copy=False).fit_transform(data)
@@ -144,8 +146,13 @@ def compute_umap(
 
     import umap
 
+    logger.debug("Computing UMAP embeddings...")
     embeddings = umap.UMAP(
-        n_neighbors=n_neighbors, metric=metric, min_dist=min_dist, random_state=SEED
+        n_neighbors=n_neighbors,
+        metric=metric,
+        min_dist=min_dist,
+        random_state=SEED,
+        low_memory=False,
     ).fit_transform(data)
     return cast(np.ndarray, embeddings), indices
 
@@ -160,6 +167,7 @@ def compute_pca(
     Prepare data from table and compute PCA on them.
     """
 
+    logger.debug("Aligning data for PCA computation...")
     data, indices = align_data(data_store, column_names, indices)
 
     if data.size == 0:
@@ -167,12 +175,17 @@ def compute_pca(
 
     from sklearn import decomposition, preprocessing
 
+    if normalization in ("standardize", "robust standardize"):
+        logger.debug(f"Preprocessing data for {normalization} metric...")
+
     if data.shape[1] == 1:
         return np.hstack((data, np.zeros_like(data))), indices
     if normalization == "standardize":
         data = preprocessing.StandardScaler(copy=False).fit_transform(data)
     elif normalization == "robust standardize":
         data = preprocessing.RobustScaler(copy=False).fit_transform(data)
+
+    logger.debug("Computing PCA embeddings...")
     reducer = decomposition.PCA(n_components=2, copy=False, random_state=SEED)
     # `fit_transform` returns Fortran-ordered array.
     embeddings = np.ascontiguousarray(reducer.fit_transform(data))
