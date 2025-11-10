@@ -151,8 +151,8 @@ def compute_umap(
         n_neighbors=n_neighbors,
         metric=metric,
         min_dist=min_dist,
-        random_state=SEED,
-        low_memory=False,
+        random_state=None, # removed for speed
+        low_memory=False, # added for speed
     ).fit_transform(data)
     return cast(np.ndarray, embeddings), indices
 
