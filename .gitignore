@@ -62,3 +62,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 .serena/
+
+
+# Pickle
+*.pkl

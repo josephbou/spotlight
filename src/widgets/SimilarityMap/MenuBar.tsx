@@ -1,6 +1,7 @@
 import FilterIcon from '../../icons/Filter';
 import FilterOffIcon from '../../icons/FilterOff';
 import ResetIcon from '../../icons/Reset';
+import SaveIcon from '../../icons/Save';
 import SettingsIcon from '../../icons/Settings';
 import Button from '../../components/ui/Button';
 import Dropdown from '../../components/ui/Dropdown';
@@ -42,6 +43,7 @@ interface Props {
     onChangeUmapMinDist: (value: number) => void;
     onChangePCANormalization: (value?: PCANormalization) => void;
     onReset: () => void;
+    onExport: (format: 'csv' | 'pickle') => void;
 }
 
 const columnTypeSelector = (d: Dataset): { [key: string]: DataType } =>
@@ -172,6 +174,21 @@ const MenuBar: FunctionComponent<Props> = (props) => {
             <Button onClick={onReset} tooltip="Fit points">
                 <ResetIcon />
             </Button>
+            <Dropdown
+                content={
+                    <Menu>
+                        <Menu.Item onClick={() => props.onExport('csv')}>
+                            Export as CSV
+                        </Menu.Item>
+                        <Menu.Item onClick={() => props.onExport('pickle')}>
+                            Export as Pickle
+                        </Menu.Item>
+                    </Menu>
+                }
+                tooltip="Export selected"
+            >
+                <SaveIcon />
+            </Dropdown>
             <Button
                 onClick={toggleFilter}
                 tooltip={filter ? 'show unfiltered' : 'hide unfiltered'}

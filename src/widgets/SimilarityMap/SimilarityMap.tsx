@@ -1,3 +1,4 @@
+import application from '../../application';
 import SimilaritiesIcon from '../../icons/Bubbles';
 import Plot, {
     MergeStrategy,
@@ -303,19 +304,19 @@ const SimilarityMap: Widget = () => {
         const reductionPromise =
             reductionMethod === 'umap'
                 ? dataService.computeUmap(
-                      widgetId,
-                      placeByColumnKeys,
-                      indices,
-                      umapNNeighbors,
-                      umapMetric ?? 'euclidean',
-                      umapMinDist
-                  )
+                    widgetId,
+                    placeByColumnKeys,
+                    indices,
+                    umapNNeighbors,
+                    umapMetric ?? 'euclidean',
+                    umapMinDist
+                )
                 : dataService.computePCA(
-                      widgetId,
-                      placeByColumnKeys,
-                      indices,
-                      pcaNormalization ?? 'none'
-                  );
+                    widgetId,
+                    placeByColumnKeys,
+                    indices,
+                    pcaNormalization ?? 'none'
+                );
 
         let cancelled = false;
         reductionPromise
@@ -463,6 +464,35 @@ const SimilarityMap: Widget = () => {
         scatterPlotRef.current?.reset();
     }, []);
 
+    const handleExport = useCallback(
+        async (format: 'csv' | 'pickle') => {
+            if (selectedIndices.length === 0) return;
+
+            const response = await fetch(`${application.apiUrl}/api/export`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    indices: Array.from(selectedIndices),
+                    format,
+                }),
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `export.${format === 'pickle' ? 'pkl' : 'csv'}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }
+        },
+        [selectedIndices]
+    );
+
     const areColumnsSelected = !!placeByColumnKeys.length;
     const hasVisibleRows = !!visibleIndices.length;
 
@@ -561,6 +591,7 @@ const SimilarityMap: Widget = () => {
                 onChangeUmapMinDist={setUmapMinDist}
                 onChangePCANormalization={setPCANormalization}
                 onReset={resetPlot}
+                onExport={handleExport}
             />
         </MapContainer>
     );

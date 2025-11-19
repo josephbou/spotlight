@@ -1,11 +1,8 @@
 [project]
 name = "renumics-spotlight"
-version = "1.7.1+custom"
+version = "1.7.2+custom"
 description = "Visualize and maintain datasets to develop and understand data-driven algorithms."
-homepage = "https://spotlight.renumics.com/"
-documentation = "https://spotlight.renumics.com/"
 readme = "README-PyPI.md"
-repository = "https://github.com/renumics/spotlight"
 keywords = [
   "data curation",
   "machine learning",
@@ -85,6 +82,11 @@ dependencies = [
     "packaging",
     "pyarrow",
 ]
+
+[project.urls]
+Homepage = "https://spotlight.renumics.com/"
+Documentation = "https://spotlight.renumics.com/"
+Repository = "https://github.com/renumics/spotlight"
 
 [project.optional-dependencies]
 analyzers = ["cleanlab", "cleanvision"]

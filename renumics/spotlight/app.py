@@ -30,7 +30,7 @@ from renumics.spotlight.analysis import find_issues
 from renumics.spotlight.analysis.typing import DataIssue
 from renumics.spotlight.app_config import AppConfig
 from renumics.spotlight.backend.apis import plugins as plugin_api
-from renumics.spotlight.backend.apis import websocket
+from renumics.spotlight.backend.apis import websocket, export
 from renumics.spotlight.backend.config import Config
 from renumics.spotlight.backend.exceptions import Problem
 from renumics.spotlight.backend.middlewares.timing import add_timing_middleware
@@ -202,6 +202,7 @@ class SpotlightApp(FastAPI):
             emit_exit_event()
 
         self.include_router(websocket.router, prefix="/api")
+        self.include_router(export.router, prefix="/api")
         self.include_router(plugin_api.router, prefix="/api/plugins")
 
         @self.exception_handler(Exception)
