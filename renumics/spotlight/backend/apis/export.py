@@ -19,7 +19,9 @@ class ExportRequest(BaseModel):
 
 
 @router.post("/export")
-async def export_data(request: Request, export_request: ExportRequest) -> StreamingResponse:
+async def export_data(
+    request: Request, export_request: ExportRequest
+) -> StreamingResponse:
     """
     Export selected data as CSV or Pickle.
     """
@@ -34,8 +36,8 @@ async def export_data(request: Request, export_request: ExportRequest) -> Stream
         # Fallback if df is not directly available
         data = {}
         for col in request.app.data_store.column_names:
-             values = request.app.data_store.data_source.get_column_values(col, indices)
-             data[col] = list(values)
+            values = request.app.data_store.data_source.get_column_values(col, indices)
+            data[col] = list(values)
         df = pd.DataFrame(data)
     else:
         df = df.iloc[indices]
@@ -50,7 +52,7 @@ async def export_data(request: Request, export_request: ExportRequest) -> Stream
         # Use StringIO for CSV then encode to bytes
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
-        stream.write(csv_buffer.getvalue().encode('utf-8'))
+        stream.write(csv_buffer.getvalue().encode("utf-8"))
         media_type = "text/csv"
         filename = "export.csv"
 

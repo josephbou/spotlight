@@ -3,6 +3,8 @@ import { AppLayout } from '../types';
 import api from '../api';
 import { saveAs } from 'file-saver';
 import websocketService from '../services/websocket';
+import { useDataset } from './dataset/dataset';
+import { serializeFilters, deserializeFilters } from '../utils/filterSerialization';
 
 export interface State {
     layout: AppLayout;
@@ -15,9 +17,16 @@ export interface State {
 export const useLayout = create<State>((set) => ({
     layout: { children: [] },
     fetch: () => {
-        api.layout
-            .getLayout()
-            .then((appLayout) => set({ layout: appLayout as AppLayout }));
+        api.layout.getLayout().then((appLayout) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { filters, ...layout } = appLayout as any;
+            set({ layout: layout as AppLayout });
+            if (filters) {
+                const columnsByKey = useDataset.getState().columnsByKey;
+                const deserializedFilters = deserializeFilters(filters, columnsByKey);
+                deserializedFilters.forEach((f) => useDataset.getState().addFilter(f));
+            }
+        });
     },
     reset: () => {
         api.layout
@@ -25,7 +34,10 @@ export const useLayout = create<State>((set) => ({
             .then((appLayout) => set({ layout: appLayout as AppLayout }));
     },
     save: (layout) => {
-        const blob = new Blob([JSON.stringify(layout)], {
+        const filters = useDataset.getState().filters;
+        const serializedFilters = serializeFilters(filters);
+        const layoutWithFilters = { ...layout, filters: serializedFilters };
+        const blob = new Blob([JSON.stringify(layoutWithFilters)], {
             type: 'application/json;charset=utf-8',
         });
         saveAs(blob, 'spotlight-layout.json');
@@ -35,9 +47,22 @@ export const useLayout = create<State>((set) => ({
         reader.onload = (e) => {
             if (!e.target) return;
             const parsedLayout = JSON.parse(e.target.result as string);
+            const { filters, ...layout } = parsedLayout;
             api.layout
-                .setLayout({ setLayoutRequest: { layout: parsedLayout } })
-                .then((appLayout) => set({ layout: appLayout as AppLayout }));
+                .setLayout({ setLayoutRequest: { layout: layout } })
+                .then((appLayout) => {
+                    set({ layout: appLayout as AppLayout });
+                    if (filters) {
+                        const columnsByKey = useDataset.getState().columnsByKey;
+                        const deserializedFilters = deserializeFilters(
+                            filters,
+                            columnsByKey
+                        );
+                        deserializedFilters.forEach((f) =>
+                            useDataset.getState().addFilter(f)
+                        );
+                    }
+                });
         };
         reader.readAsText(file);
     },

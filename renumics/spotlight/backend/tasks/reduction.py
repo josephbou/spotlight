@@ -146,14 +146,26 @@ def compute_umap(
 
     import umap
 
+    # Warmup UMAP (run once to compile numba)
+    logger.debug("Warming up UMAP compilation...")
+    dummy_data = np.random.randn(200, data.shape[1])
+    _ = umap.UMAP(
+        n_neighbors=n_neighbors,
+        metric=metric,
+        min_dist=min_dist,
+        random_state=None,
+        low_memory=False,
+    ).fit_transform(dummy_data)
+
     logger.debug("Computing UMAP embeddings...")
     embeddings = umap.UMAP(
         n_neighbors=n_neighbors,
         metric=metric,
         min_dist=min_dist,
-        random_state=None, # removed for speed
-        low_memory=False, # added for speed
+        random_state=None,  # removed for speed
+        low_memory=False,  # added for speed
     ).fit_transform(data)
+    logger.debug("UMAP computation finished.")
     return cast(np.ndarray, embeddings), indices
 
 

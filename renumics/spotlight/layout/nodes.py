@@ -67,6 +67,7 @@ class Layout(BaseModel, extra="forbid"):
 
     children: List[Union[Split, Tab]] = Field(default_factory=list)
     orientation: Orientation = None
+    filters: List[Any] = Field(default_factory=list)
 
 
 Split.model_rebuild()

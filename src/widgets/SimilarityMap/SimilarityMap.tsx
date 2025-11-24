@@ -304,19 +304,19 @@ const SimilarityMap: Widget = () => {
         const reductionPromise =
             reductionMethod === 'umap'
                 ? dataService.computeUmap(
-                    widgetId,
-                    placeByColumnKeys,
-                    indices,
-                    umapNNeighbors,
-                    umapMetric ?? 'euclidean',
-                    umapMinDist
-                )
+                      widgetId,
+                      placeByColumnKeys,
+                      indices,
+                      umapNNeighbors,
+                      umapMetric ?? 'euclidean',
+                      umapMinDist
+                  )
                 : dataService.computePCA(
-                    widgetId,
-                    placeByColumnKeys,
-                    indices,
-                    pcaNormalization ?? 'none'
-                );
+                      widgetId,
+                      placeByColumnKeys,
+                      indices,
+                      pcaNormalization ?? 'none'
+                  );
 
         let cancelled = false;
         reductionPromise
