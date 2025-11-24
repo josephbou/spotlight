@@ -3092,13 +3092,12 @@ class Dataset:
         if values.keys() == self._column_names:
             return values
         error_message = (
-            "Keys of `values` mismatch column names, even with updated "
-            "default values."
+            "Keys of `values` mismatch column names, even with updated default values."
         )
         missing_keys = self._column_names - set(values.keys())
         if missing_keys:
             error_message += (
-                '\n\tKeys "' + '", "'.join(missing_keys) + '" missing in ' "`values`."
+                '\n\tKeys "' + '", "'.join(missing_keys) + '" missing in `values`.'
             )
         excessive_keys = set(values.keys()) - self._column_names
         if excessive_keys:

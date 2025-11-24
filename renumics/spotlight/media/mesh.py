@@ -122,7 +122,10 @@ class Mesh(FileMediaType):
         Import a `trimesh.Trimesh` mesh.
         """
         return cls(
-            mesh.vertices, mesh.faces, mesh.vertex_attributes, mesh.face_attributes  # type: ignore
+            mesh.vertices,
+            mesh.faces,
+            mesh.vertex_attributes,
+            mesh.face_attributes,  # type: ignore
         )
 
     @classmethod

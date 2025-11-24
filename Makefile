@@ -34,12 +34,12 @@ audit: ## Audit project dependencies
 
 .PHONY: check-format
 check-format: ## Check code formatting
-	uv run black --check .
+	uvx ruff format --check .
 	npx prettier --check 'src/**/*.{js,ts,tsx,json,yaml,css}'
 
 .PHONY: format
 format: ## Fix code formatting
-	uv run black .
+	uvx ruff format .
 	npx prettier --write 'src/**/*.{js,ts,tsx,json,yaml,css}'
 
 .PHONY: typecheck
@@ -52,7 +52,7 @@ typecheck: ## Typecheck all source files
 
 .PHONY: lint
 lint: ## Lint all source files
-	uv run ruff check renumics tests scripts/*.py
+	uvx ruff check renumics tests scripts/*.py
 	pnpm run lint
 
 TABLE_FILE ?= "data/tables/tallymarks-small.h5"

@@ -63,7 +63,7 @@ make typecheck
 # Linting (uses ruff for Python, eslint for TypeScript)
 make lint
 
-# Format code (black for Python, prettier for TypeScript)
+# Format code (ruff for Python, prettier for TypeScript)
 make format
 
 # Check formatting without modifying
@@ -216,7 +216,7 @@ make api-client
 - All commands should use `uv run` prefix (e.g., `uv run pytest`, `uv run mypy`)
 - Type hints required (`disallow_untyped_defs = true` in mypy config)
 - Ruff linting with `extend-select = ["I"]` for import sorting
-- Black for code formatting
+- Ruff for code formatting
 - Pre-commit hooks enforce quality checks
 - Static versioning in pyproject.toml (version = "1.7.1-custom")
 

@@ -42,7 +42,10 @@ def _random_ints(num_rows: int, seed: int) -> np.ndarray:
     dtype = "int32"
     np.random.seed(seed)
     return np.random.randint(
-        np.iinfo(dtype).min, np.iinfo(dtype).max, size=num_rows, dtype=dtype  # type: ignore
+        np.iinfo(dtype).min,
+        np.iinfo(dtype).max,
+        size=num_rows,
+        dtype=dtype,  # type: ignore
     )
 
 
