@@ -9,7 +9,7 @@ import {
 import { VariableSizeGrid } from 'react-window';
 import type { GridOnScrollProps, ListOnScrollProps } from 'react-window';
 import { Dataset, useDataset } from '../../stores/dataset';
-import tw from 'twin.macro';
+import tw, { styled } from 'twin.macro';
 import getScrollbarSize from '../../browser';
 import Header, { Ref as HeaderRef } from './Header';
 import RowHeightContext from './rowHeightContext';
@@ -18,11 +18,14 @@ import ViewGrid from './ViewGrid';
 import Info from '../../components/ui/Info';
 
 export const MIN_COLUMN_WIDTH = 128;
-export const COLUMN_COUNT_OPTIONS = [1, 2, 4, 6, 8];
+export const COLUMN_COUNT_OPTIONS = [1, 2, 4, 6, 8, 10, 12, 14, 16];
 
-const HEADER_WIDTH = 24;
+const HEADER_SIZE = 24;
 
-const DetailsGridWrapper = tw.div`flex`;
+const DetailsGridWrapper = styled.div<{ orientation?: 'horizontal' | 'vertical' }>`
+    ${tw`flex`}
+    ${({ orientation }) => (orientation === 'vertical' ? tw`flex-col` : tw`flex-row`)}
+`;
 
 const viewsSelector = (state: StoreState) => state.lenses;
 const focusedRowSelector = (d: Dataset) => d.lastFocusedRow;
@@ -33,8 +36,10 @@ const DetailsGrid: FunctionComponent<{
     width: number;
     height: number;
     visibleColumnsCount: number;
-}> = ({ width, height, visibleColumnsCount }) => {
-    const [scrollbarWidth] = getScrollbarSize();
+    orientation?: 'horizontal' | 'vertical';
+}> = ({ width, height, visibleColumnsCount, orientation = 'horizontal' }) => {
+    const isVertical = orientation === 'vertical';
+    const [scrollbarWidth, scrollbarHeight] = getScrollbarSize();
     const detailsGrid = useRef<VariableSizeGrid>(null);
     const header = useRef<HeaderRef>(null);
     const scrollLeft = useRef<number>();
@@ -48,48 +53,73 @@ const DetailsGrid: FunctionComponent<{
     const rowCount = useDataset(rowCountSelector);
     const rowIndices = useDataset(selectedIndicesSelector);
 
-    const [columnCount, columnWidth] = useMemo(() => {
+    const [itemCount, itemSize] = useMemo(() => {
         let visibleCount: number = visibleColumnsCount;
-        const gridWidth = width - HEADER_WIDTH - scrollbarWidth;
-        let newWidth = gridWidth / visibleColumnsCount;
+        const availableSpace = isVertical
+            ? height - HEADER_SIZE - scrollbarHeight
+            : width - HEADER_SIZE - scrollbarWidth;
+
+        let newSize = availableSpace / visibleColumnsCount;
         // snap to next lower column count in the available options in order to keep min column width
-        while (newWidth < MIN_COLUMN_WIDTH && visibleCount > COLUMN_COUNT_OPTIONS[0]) {
+        // For vertical, MIN_COLUMN_WIDTH might be MIN_ROW_HEIGHT? Assume same requirement.
+        while (newSize < MIN_COLUMN_WIDTH && visibleCount > COLUMN_COUNT_OPTIONS[0]) {
             visibleCount =
                 COLUMN_COUNT_OPTIONS[COLUMN_COUNT_OPTIONS.indexOf(visibleCount) - 1];
-            newWidth = gridWidth / visibleCount;
+            newSize = availableSpace / visibleCount;
         }
-        return [visibleCount, newWidth];
-    }, [visibleColumnsCount, width, scrollbarWidth]);
+        return [visibleCount, newSize];
+    }, [
+        visibleColumnsCount,
+        width,
+        height,
+        scrollbarWidth,
+        scrollbarHeight,
+        isVertical,
+    ]);
 
-    const getColumnWidth = useCallback(() => columnWidth, [columnWidth]);
+    const getItemSize = useCallback(() => itemSize, [itemSize]);
 
     useEffect(() => {
         detailsGrid.current?.resetAfterRowIndex(0);
         header.current?.resetAfterIndex(0);
     }, [views]);
-    useEffect(() => detailsGrid.current?.resetAfterColumnIndex(0), [columnWidth]);
+    useEffect(() => {
+        if (isVertical) detailsGrid.current?.resetAfterRowIndex(0);
+        else detailsGrid.current?.resetAfterColumnIndex(0);
+    }, [itemSize, isVertical]);
 
     const snapToItem = useCallback(
         (itemToScrollTo: number) => {
-            detailsGrid.current?.scrollTo({
-                scrollLeft: itemToScrollTo * columnWidth,
-                scrollTop: scrollTop.current || 0,
-            });
+            if (isVertical) {
+                detailsGrid.current?.scrollTo({
+                    scrollTop: itemToScrollTo * itemSize,
+                    scrollLeft: scrollLeft.current || 0,
+                });
+            } else {
+                detailsGrid.current?.scrollTo({
+                    scrollLeft: itemToScrollTo * itemSize,
+                    scrollTop: scrollTop.current || 0,
+                });
+            }
             leftItemIndex.current = itemToScrollTo;
         },
-        [columnWidth]
+        [itemSize, isVertical]
     );
 
     const snapToClosestItem = useCallback(() => {
-        const itemToScrollTo = Math.round((scrollLeft.current || 0) / columnWidth);
+        const currentScroll = isVertical
+            ? scrollTop.current || 0
+            : scrollLeft.current || 0;
+        const itemToScrollTo = Math.round(currentScroll / itemSize);
         snapToItem(itemToScrollTo);
-    }, [columnWidth, snapToItem]);
+    }, [itemSize, snapToItem, isVertical]);
 
     useEffect(() => {
-        // when column width changed compute new scroll left based on visible left item and new column width
-        scrollLeft.current = leftItemIndex.current * columnWidth;
+        // when item size changed compute new scroll position based on visible item
+        if (isVertical) scrollTop.current = leftItemIndex.current * itemSize;
+        else scrollLeft.current = leftItemIndex.current * itemSize;
         snapToClosestItem();
-    }, [columnWidth, snapToClosestItem]);
+    }, [itemSize, snapToClosestItem, isVertical]);
 
     useEffect(() => {
         // scroll to focused item on focus
@@ -101,11 +131,15 @@ const DetailsGrid: FunctionComponent<{
     const onScrollSnap = useCallback((): void => {
         // when mouse is still pressed dont scroll now but save scroll position
         if (mouseDown.current === false) {
-            if (scrollLeft.current !== undefined) {
+            if (
+                isVertical
+                    ? scrollTop.current !== undefined
+                    : scrollLeft.current !== undefined
+            ) {
                 snapToClosestItem();
             }
         }
-    }, [snapToClosestItem]);
+    }, [snapToClosestItem, isVertical]);
 
     const onScroll = useCallback(
         ({
@@ -113,7 +147,7 @@ const DetailsGrid: FunctionComponent<{
             scrollLeft: scrollOffsetLeft,
             scrollTop: scrollOffsetTop,
         }: GridOnScrollProps) => {
-            header.current?.scrollTo(scrollOffsetTop);
+            header.current?.scrollTo(isVertical ? scrollOffsetLeft : scrollOffsetTop);
 
             if (scrollTimer.current !== undefined) {
                 clearTimeout(scrollTimer.current);
@@ -126,18 +160,18 @@ const DetailsGrid: FunctionComponent<{
                 scrollTimer.current = setTimeout(onScrollSnap, 150);
             }
         },
-        [onScrollSnap]
+        [onScrollSnap, isVertical]
     );
 
     const onScrollHeader = useCallback(
         ({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
             if (scrollUpdateWasRequested) return;
             detailsGrid.current?.scrollTo({
-                scrollTop: scrollOffset,
-                scrollLeft: scrollLeft.current || 0,
+                scrollTop: isVertical ? scrollTop.current || 0 : scrollOffset,
+                scrollLeft: isVertical ? scrollOffset : scrollLeft.current || 0,
             });
         },
-        []
+        [isVertical]
     );
 
     const onMouseDown = useCallback(() => {
@@ -145,68 +179,96 @@ const DetailsGrid: FunctionComponent<{
     }, []);
     const onMouseUp = useCallback(() => {
         mouseDown.current = false;
-        if (scrollLeft.current !== undefined) {
+        if (
+            isVertical
+                ? scrollTop.current !== undefined
+                : scrollLeft.current !== undefined
+        ) {
             snapToClosestItem();
         }
-    }, [snapToClosestItem]);
+    }, [snapToClosestItem, isVertical]);
 
     const onResize = useCallback(
         (resizedViewKey?: string) => {
             const resizedIndex = views.findIndex(({ key }) => key === resizedViewKey);
-            detailsGrid.current?.resetAfterRowIndex(Math.max(0, resizedIndex));
+            // resetAfterRowIndex logic change?
+            // RowHeightContext triggers this.
+            // If horizontal: attributes are rows. resetAfterRowIndex(resizedIndex).
+            // If vertical: attributes are columns. resetAfterColumnIndex(resizedIndex).
+            if (isVertical)
+                detailsGrid.current?.resetAfterColumnIndex(Math.max(0, resizedIndex));
+            else detailsGrid.current?.resetAfterRowIndex(Math.max(0, resizedIndex));
+
             header.current?.resetAfterIndex(Math.max(0, resizedIndex));
             header.current?.scrollToItemBottom(resizedIndex);
         },
-        [views]
+        [views, isVertical]
     );
 
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLDivElement>) => {
             const lastSelectedIndex = leftItemIndex.current;
 
-            const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+            const step =
+                (e.key === 'ArrowRight' && !isVertical) ||
+                (e.key === 'ArrowDown' && isVertical)
+                    ? 1
+                    : (e.key === 'ArrowLeft' && !isVertical) ||
+                        (e.key === 'ArrowUp' && isVertical)
+                      ? -1
+                      : 0;
 
             const nextSelectedIndex = Math.min(
-                rowIndices.length - columnCount,
+                rowIndices.length - itemCount,
                 Math.max(0, lastSelectedIndex + step)
             );
 
             if (nextSelectedIndex !== lastSelectedIndex) {
                 detailsGrid.current?.scrollTo({
-                    scrollLeft: nextSelectedIndex * columnWidth,
+                    scrollLeft: isVertical ? undefined : nextSelectedIndex * itemSize,
+                    scrollTop: isVertical ? nextSelectedIndex * itemSize : undefined,
                 });
                 leftItemIndex.current = nextSelectedIndex;
             }
         },
-        [rowIndices, columnCount, columnWidth]
+        [rowIndices, itemCount, itemSize, isVertical]
     );
 
+    // Header Count logic:
+    // Header items are views.
+
+    // Styles:
+    // Wrapper style updated above.
+
     return (
-        <RowHeightContext onResize={onResize}>
+        <RowHeightContext onResize={onResize} orientation={orientation}>
             {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions,jsx-a11y/no-noninteractive-tabindex */}
             <div tabIndex={0} onKeyDown={handleKeyDown} tw="focus:outline-none">
                 <DetailsGridWrapper
                     style={{ width, height }}
                     onMouseDown={onMouseDown}
                     onMouseUp={onMouseUp}
+                    orientation={orientation}
                 >
                     <Header
                         ref={header}
-                        height={height}
-                        width={HEADER_WIDTH}
+                        height={isVertical ? HEADER_SIZE : height}
+                        width={isVertical ? width : HEADER_SIZE}
                         itemCount={views.length}
                         onScroll={onScrollHeader}
+                        orientation={orientation}
                     />
                     {rowIndices.length > 0 && views.length > 0 ? (
                         <ViewGrid
                             ref={detailsGrid}
-                            height={height}
-                            width={width - HEADER_WIDTH}
-                            columnWidth={getColumnWidth}
-                            estimatedColumnWidth={columnWidth}
+                            height={isVertical ? height - HEADER_SIZE : height}
+                            width={isVertical ? width : width - HEADER_SIZE}
+                            columnWidth={getItemSize}
+                            estimatedColumnWidth={itemSize}
                             rowIndices={rowIndices}
                             views={views}
                             onScroll={onScroll}
+                            orientation={orientation}
                         />
                     ) : (
                         <Info>

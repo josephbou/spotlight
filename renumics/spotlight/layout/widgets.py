@@ -126,7 +126,7 @@ class Similaritymap(Widget):
     config: Optional[SimilaritymapConfig] = None
 
 
-NumInspectorColumns = Literal[1, 2, 4, 6, 8]
+NumInspectorColumns = Literal[1, 2, 4, 6, 8, 10, 12, 14, 16]
 
 
 class InspectorConfig(WidgetConfig):
@@ -136,6 +136,7 @@ class InspectorConfig(WidgetConfig):
 
     lenses: Optional[List[Lens]] = Field(None, alias="views")
     num_columns: NumInspectorColumns = Field(4, alias="visibleColumns")
+    orientation: Optional[Literal["horizontal", "vertical"]] = "horizontal"
 
 
 class Inspector(Widget):

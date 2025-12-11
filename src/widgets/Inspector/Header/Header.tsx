@@ -41,6 +41,7 @@ type Props = {
     width: number;
     itemCount: number;
     onScroll: (props: ListOnScrollProps) => void;
+    orientation?: 'horizontal' | 'vertical';
 };
 
 export type Ref = {
@@ -64,7 +65,7 @@ const renderClone = (
     />
 );
 const Header: React.ForwardRefRenderFunction<Ref, Props> = (
-    { height, width, itemCount, onScroll },
+    { height, width, itemCount, onScroll, orientation = 'horizontal' },
     ref
 ) => {
     const moveView = useStore(moveViewsSelector);
@@ -79,7 +80,9 @@ const Header: React.ForwardRefRenderFunction<Ref, Props> = (
 
     const detailsList = useRef<VariableSizeList>(null);
 
-    const [, scrollbarHeight] = getScrollbarSize();
+    const [scrollbarWidth, scrollbarHeight] = getScrollbarSize();
+
+    const isHorizontal = orientation === 'vertical'; // Header is horizontal
 
     useImperativeHandle(
         ref,
@@ -88,14 +91,16 @@ const Header: React.ForwardRefRenderFunction<Ref, Props> = (
                 detailsList.current?.scrollTo(scrollTo);
             },
             scrollToItemBottom: (index: number) => {
-                const listHeight = height - scrollbarHeight;
+                const listSize = isHorizontal
+                    ? width - scrollbarWidth
+                    : height - scrollbarHeight;
 
                 const scrollOffset =
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (detailsList.current?.state as any).scrollOffset || 0;
 
                 const newScrollOffset =
-                    _.sum(rowHeights.current.slice(0, index + 1)) - listHeight;
+                    _.sum(rowHeights.current.slice(0, index + 1)) - listSize;
 
                 if (scrollOffset < newScrollOffset + SCROLL_BORDER_OFFSET)
                     detailsList.current?.scrollTo(
@@ -103,17 +108,17 @@ const Header: React.ForwardRefRenderFunction<Ref, Props> = (
                     );
                 else if (
                     scrollOffset >
-                    newScrollOffset + (listHeight - SCROLL_BORDER_OFFSET)
+                    newScrollOffset + (listSize - SCROLL_BORDER_OFFSET)
                 )
                     detailsList.current?.scrollTo(
-                        newScrollOffset + listHeight - SCROLL_BORDER_OFFSET
+                        newScrollOffset + listSize - SCROLL_BORDER_OFFSET
                     );
             },
             resetAfterIndex: (index: number) => {
                 detailsList.current?.resetAfterIndex(Math.floor(index / 2));
             },
         }),
-        [height, scrollbarHeight]
+        [height, width, scrollbarHeight, scrollbarWidth, isHorizontal]
     );
 
     const headerRowHeight = useCallback(
@@ -137,15 +142,18 @@ const Header: React.ForwardRefRenderFunction<Ref, Props> = (
                 droppableId="droppableDetailsList"
                 mode="virtual"
                 renderClone={renderClone}
+                direction={isHorizontal ? 'horizontal' : 'vertical'}
             >
                 {(droppableProvided: DroppableProvided) => {
                     return (
                         <StyledList
                             ref={detailsList}
-                            height={height - scrollbarHeight}
+                            height={isHorizontal ? height : height - scrollbarHeight}
                             itemCount={itemCount * 2}
                             itemSize={headerRowHeight}
-                            width={width}
+                            width={isHorizontal ? width - scrollbarWidth : width}
+                            layout={isHorizontal ? 'horizontal' : 'vertical'}
+                            itemData={{ orientation }}
                             onScroll={onScroll}
                             outerRef={droppableProvided.innerRef}
                         >

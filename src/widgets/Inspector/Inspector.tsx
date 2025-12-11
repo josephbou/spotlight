@@ -44,6 +44,11 @@ const Inspector: Widget = () => {
         'visibleColumns',
         4
     );
+    const [orientation, setOrientation] = useWidgetConfig<'horizontal' | 'vertical'>(
+        'orientation',
+        'horizontal'
+    );
+
     return (
         <StoreProvider>
             <WidgetContainer>
@@ -51,6 +56,8 @@ const Inspector: Widget = () => {
                     visibleColumnsCount={visibleColumnsCount}
                     setVisibleColumnsCount={setVisibleColumnsCount}
                     visibleColumnsCountOptions={COLUMN_COUNT_OPTIONS}
+                    orientation={orientation}
+                    setOrientation={setOrientation}
                 />
                 <WidgetContent tw="relative">
                     <DropZone />
@@ -60,6 +67,7 @@ const Inspector: Widget = () => {
                                 width={width}
                                 height={height}
                                 visibleColumnsCount={visibleColumnsCount}
+                                orientation={orientation}
                             />
                         )}
                     </AutoSizer>

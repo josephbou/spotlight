@@ -103,7 +103,7 @@ def compute_cache_key(
         embedding_sample_serializable = embedding_sample.tolist()
     else:
         embedding_sample_serializable = embedding_sample
-    
+
     cache_params = {
         "embedding_sample": embedding_sample_serializable,
         "generation_id": generation_id,

@@ -24,6 +24,7 @@ export const RowHeightContext = createContext<RowHeightContextState>({
 type RowHeightProviderProps = {
     onResize?: (resizedView: string) => void;
     children?: ReactNode;
+    orientation?: 'horizontal' | 'vertical';
 };
 
 const viewsSelector = (state: State) => state.lenses;
@@ -33,6 +34,7 @@ let resizingLoopInterval: ReturnType<typeof setInterval> | undefined = undefined
 const RowHeightProvider: FunctionComponent<RowHeightProviderProps> = ({
     onResize = () => null,
     children,
+    orientation = 'horizontal',
 }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
@@ -60,11 +62,11 @@ const RowHeightProvider: FunctionComponent<RowHeightProviderProps> = ({
     );
 
     const startResize = useCallback(
-        (index: number, screenY: number) => {
+        (index: number, screenPosition: number) => {
             const viewConfig = visibleLenses[index];
             resizedRow.current = viewConfig.key;
-            startScreenY.current = screenY;
-            lastScreenY.current = screenY;
+            startScreenY.current = screenPosition;
+            lastScreenY.current = screenPosition;
             startHeight.current =
                 rowHeights[viewConfig.key] ??
                 lenses[viewConfig.view]?.defaultHeight ??
@@ -108,12 +110,20 @@ const RowHeightProvider: FunctionComponent<RowHeightProviderProps> = ({
 
             const rect = ref.current?.getBoundingClientRect();
 
-            const relY = rect?.height
-                ? (event.clientY - (rect?.top || 0)) / rect?.height
-                : 0.5;
+            if (!rect) return;
 
-            if (relY > 0.9 && rect) {
-                const scrollSpeed = (relY - 0.9) * 10;
+            const isHorizontal = orientation === 'vertical'; // Header is horizontal when inspector is vertical
+
+            const relPos = isHorizontal
+                ? rect.width
+                    ? (event.clientX - rect.left) / rect.width
+                    : 0.5
+                : rect.height
+                  ? (event.clientY - rect.top) / rect.height
+                  : 0.5;
+
+            if (relPos > 0.9) {
+                const scrollSpeed = (relPos - 0.9) * 10;
                 resizingLoopInterval = setInterval(() => {
                     resizeView(
                         rowKey,
@@ -123,8 +133,8 @@ const RowHeightProvider: FunctionComponent<RowHeightProviderProps> = ({
                 return;
             }
 
-            if (relY < 0.1 && rect) {
-                const scrollSpeed = (relY - 0.1) * -10;
+            if (relPos < 0.1) {
+                const scrollSpeed = (relPos - 0.1) * -10;
                 resizingLoopInterval = setInterval(() => {
                     resizeView(
                         rowKey,
@@ -134,12 +144,14 @@ const RowHeightProvider: FunctionComponent<RowHeightProviderProps> = ({
                 return;
             }
 
-            const newHeight =
-                currentHeight.current + event.screenY - lastScreenY.current;
-            lastScreenY.current = event.screenY;
-            resizeView(rowKey, newHeight);
+            const newSize = isHorizontal
+                ? currentHeight.current + event.screenX - lastScreenY.current
+                : currentHeight.current + event.screenY - lastScreenY.current;
+            lastScreenY.current = isHorizontal ? event.screenX : event.screenY;
+
+            resizeView(rowKey, newSize);
         },
-        [isResizing, resizeView]
+        [isResizing, resizeView, orientation]
     );
 
     const onMouseUp = useCallback(() => {

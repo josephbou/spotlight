@@ -24,6 +24,7 @@ type ViewGridProps = {
         scrollLeft,
         scrollTop,
     }: GridOnScrollProps) => void;
+    orientation?: 'horizontal' | 'vertical';
 };
 
 export type Ref = {
@@ -39,7 +40,16 @@ export type Ref = {
 };
 
 const ViewGrid: ForwardRefRenderFunction<Ref, ViewGridProps> = (
-    { height, width, columnWidth, estimatedColumnWidth, views, rowIndices, onScroll },
+    {
+        height,
+        width,
+        columnWidth,
+        estimatedColumnWidth,
+        views,
+        rowIndices,
+        onScroll,
+        orientation = 'horizontal',
+    },
     ref
 ) => {
     const gridRef = useRef<VariableSizeGrid>(null);
@@ -62,22 +72,27 @@ const ViewGrid: ForwardRefRenderFunction<Ref, ViewGridProps> = (
         []
     );
 
+    const isVertical = orientation === 'vertical';
+
     return (
         <VariableSizeGrid
             ref={gridRef}
             height={height}
             width={width}
-            columnWidth={columnWidth}
+            columnWidth={isVertical ? rowHeight : columnWidth}
             estimatedColumnWidth={estimatedColumnWidth}
             itemKey={({ columnIndex, rowIndex }) =>
-                `${views[rowIndex].key}/${rowIndices[columnIndex]}`
+                isVertical
+                    ? `${views[columnIndex].key}/${rowIndices[rowIndex]}`
+                    : `${views[rowIndex].key}/${rowIndices[columnIndex]}`
             }
-            rowHeight={rowHeight}
-            columnCount={rowIndices.length}
-            rowCount={views.length}
+            rowHeight={isVertical ? columnWidth : rowHeight}
+            columnCount={isVertical ? views.length : rowIndices.length}
+            rowCount={isVertical ? rowIndices.length : views.length}
             useIsScrolling={true}
             onScroll={onScroll}
             style={{ overflow: 'scroll' }}
+            itemData={{ orientation }}
         >
             {DetailCell}
         </VariableSizeGrid>

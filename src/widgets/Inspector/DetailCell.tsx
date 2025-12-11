@@ -46,9 +46,18 @@ const selectedIndicesSelector = (d: Dataset) => d.selectedIndices;
 const Cell: FunctionComponent<Props> = ({
     style,
     isScrolling,
-    columnIndex: dataRowIndex,
-    rowIndex: dataColumnIndex,
+    columnIndex,
+    rowIndex,
+    data,
 }) => {
+    const { orientation } = (data as { orientation?: 'horizontal' | 'vertical' }) || {
+        orientation: 'horizontal',
+    };
+    const isVertical = orientation === 'vertical';
+
+    const dataRowIndex = isVertical ? rowIndex : columnIndex;
+    const dataColumnIndex = isVertical ? columnIndex : rowIndex;
+
     const lens = useStore((state) => state.lenses[dataColumnIndex]);
     const rowIndices = useDataset(selectedIndicesSelector);
     const allColumns = useDataset(columnsSelector);
