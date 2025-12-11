@@ -96,8 +96,16 @@ def compute_cache_key(
         64-character hex string (SHA256)
     """
     # Create stable representation
+    # Handle embedding_sample (could be ndarray, list, or None)
+    if embedding_sample is None:
+        embedding_sample_serializable = None
+    elif isinstance(embedding_sample, np.ndarray):
+        embedding_sample_serializable = embedding_sample.tolist()
+    else:
+        embedding_sample_serializable = embedding_sample
+    
     cache_params = {
-        "embedding_sample": embedding_sample.tolist(),
+        "embedding_sample": embedding_sample_serializable,
         "generation_id": generation_id,
         "columns": sorted(column_names),  # Sort for stability
         "indices": sorted(indices),  # Sort for stability
