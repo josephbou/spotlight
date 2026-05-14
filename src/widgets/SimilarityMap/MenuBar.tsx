@@ -24,6 +24,7 @@ const Styles = tw.div`pl-2 py-0.5 absolute top-0 right-0 items-start flex flex-r
 interface Props {
     colorBy?: string;
     sizeBy?: string;
+    shapeBy?: string;
     placeBy: string[];
     filter: boolean;
     embeddableColumns: string[];
@@ -35,6 +36,7 @@ interface Props {
     pcaNormalization: PCANormalization;
     onChangeColorBy: (columnName?: string) => void;
     onChangeSizeBy: (columnName?: string) => void;
+    onChangeShapeBy: (columnName?: string) => void;
     onChangePlaceBy: (columnNames: string[]) => void;
     onChangeFilter: (value: boolean) => void;
     onChangeReductionMethod: (value?: ReductionMethod) => void;
@@ -55,6 +57,7 @@ const columnTypeSelector = (d: Dataset): { [key: string]: DataType } =>
 const SettingsMenu = ({
     colorBy,
     sizeBy,
+    shapeBy,
     placeBy,
     reductionMethod,
     embeddableColumns,
@@ -65,6 +68,7 @@ const SettingsMenu = ({
     pcaNormalization,
     onChangeColorBy,
     onChangeSizeBy,
+    onChangeShapeBy,
     onChangePlaceBy,
     onChangeReductionMethod,
     onChangeUmapNNeighbors,
@@ -98,6 +102,18 @@ const SettingsMenu = ({
             '',
             ...Object.entries(columnType)
                 .filter(([, type]) => ['int', 'float', 'bool'].includes(type.kind))
+                .map(([col]) => col),
+        ],
+        [columnType]
+    );
+
+    const shapeableColumns = useMemo(
+        () => [
+            '',
+            ...Object.entries(columnType)
+                .filter(([, type]) =>
+                    ['int', 'str', 'bool', 'Category'].includes(type.kind)
+                )
                 .map(([col]) => col),
         ],
         [columnType]
@@ -153,6 +169,14 @@ const SettingsMenu = ({
                     onChange={onChangeSizeBy}
                     options={scaleableColumns}
                     value={sizeBy}
+                />
+            </Menu.Item>
+            <Menu.Item>
+                <Menu.Title>Shape By</Menu.Title>
+                <Select
+                    onChange={onChangeShapeBy}
+                    options={shapeableColumns}
+                    value={shapeBy}
                 />
             </Menu.Item>
         </Menu>

@@ -3,11 +3,14 @@ import SimilaritiesIcon from '../../icons/Bubbles';
 import Plot, {
     MergeStrategy,
     Points,
+    Shape,
+    SHAPES,
     Zoom,
     ZoomHandle,
 } from '../../components/shared/Plot';
 import Brush from '../../components/shared/Plot/Brush';
 import Legend from '../../components/shared/Plot/Legend';
+import ShapeLegend from '../../components/shared/Plot/Legend/ShapeLegend';
 import Tooltip from '../../components/shared/Plot/Tooltip';
 import { createConstantTransferFunction } from '../../hooks/useColorTransferFunction';
 import _ from 'lodash';
@@ -90,6 +93,7 @@ const SimilarityMap: Widget = () => {
     const [filter, setFilter] = useWidgetConfig('filter', false);
     const [storedColorByKey, setStoredColorByKey] = useWidgetConfig<string>('colorBy');
     const [sizeByKey, setSizeByKey] = useWidgetConfig<string>('sizeBy');
+    const [shapeByKey, setShapeByKey] = useWidgetConfig<string>('shapeBy');
     const [reductionMethod, setReductionMethod] = useWidgetConfig<
         ReductionMethod | undefined
     >('reductionMethod', 'umap');
@@ -159,6 +163,16 @@ const SimilarityMap: Widget = () => {
     const sizeByData = useMemo(
         () => (sizeByKey ? columnData[sizeByKey] : []),
         [sizeByKey, columnData]
+    );
+
+    const shapeBySelector = useCallback(
+        (d: Dataset) => d.columns.find((c) => c.key === shapeByKey),
+        [shapeByKey]
+    );
+    const shapeBy = useDataset(shapeBySelector);
+    const shapeByData = useMemo(
+        () => (shapeByKey ? columnData[shapeByKey] : []),
+        [shapeByKey, columnData]
     );
 
     const indices = useMemo(() => {
@@ -273,6 +287,56 @@ const SimilarityMap: Widget = () => {
         return sizes;
     }, [visibleIndices, sizeByData, sizeTrans]);
 
+    const shapeMap = useMemo<{ value: unknown; label: string; shape: Shape }[]>(() => {
+        if (!shapeByKey || !shapeBy || !shapeByData?.length) return [];
+
+        const seen = new Set<string>();
+        const ordered: unknown[] = [];
+        for (const index of visibleIndices) {
+            const v = shapeByData[index];
+            if (v === null || v === undefined) continue;
+            if (typeof v === 'number' && isNaN(v)) continue;
+            const key = String(v);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            ordered.push(v);
+        }
+        ordered.sort((a, b) => String(a).localeCompare(String(b)));
+
+        const isCat = shapeBy.type.kind === 'Category';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invertedCategories: Record<number, string> = isCat
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (shapeBy.type as any).invertedCategories ?? {}
+            : {};
+
+        return ordered.map((v, i) => ({
+            value: v,
+            label: isCat
+                ? invertedCategories[v as number] ?? String(v)
+                : typeof v === 'boolean'
+                  ? v
+                      ? 'true'
+                      : 'false'
+                  : String(v),
+            shape: SHAPES[i % SHAPES.length],
+        }));
+    }, [shapeByKey, shapeBy, shapeByData, visibleIndices]);
+
+    const shapes = useMemo<Shape[]>(() => {
+        if (!shapeMap.length) return [];
+        const valueToShape = new Map<string, Shape>(
+            shapeMap.map((m) => [String(m.value), m.shape])
+        );
+        const out: Shape[] = new Array(visibleIndices.length);
+        visibleIndices.forEach((index, i) => {
+            const v = shapeByData?.[index];
+            const key = v === null || v === undefined ? null : String(v);
+            out[i] = (key !== null && valueToShape.get(key)) || 'circle';
+        });
+        return out;
+    }, [shapeMap, visibleIndices, shapeByData]);
+
     const widgetId = useMemo(() => uuidv4(), []);
 
     const anyColumnComputing = useDataset((d) =>
@@ -374,7 +438,7 @@ const SimilarityMap: Widget = () => {
             if (!rowIndex) return;
 
             const defaultColumns = _.compact(
-                _.union(placeByColumns, [colorBy, sizeBy])
+                _.union(placeByColumns, [colorBy, sizeBy, shapeBy])
             );
 
             // compute z-scores for all number columns and order them descending
@@ -413,6 +477,7 @@ const SimilarityMap: Widget = () => {
             placeByColumns,
             colorBy,
             sizeBy,
+            shapeBy,
             fullColumns,
             columnData,
             columnStats,
@@ -544,6 +609,7 @@ const SimilarityMap: Widget = () => {
                         <Points
                             colors={colors}
                             sizes={sizes}
+                            shapes={shapes}
                             selected={selected}
                             hidden={hidden}
                             onClick={handleClick}
@@ -555,6 +621,15 @@ const SimilarityMap: Widget = () => {
                         <Legend
                             transferFunction={transferFunction}
                             caption={colorBy?.name || colorByKey}
+                        />
+                    )}
+                    {shapeByKey && shapeMap.length > 0 && (
+                        <ShapeLegend
+                            caption={shapeBy?.name || shapeByKey}
+                            entries={shapeMap.map((m) => ({
+                                label: m.label,
+                                shape: m.shape,
+                            }))}
                         />
                     )}
                 </PlotContainer>
@@ -572,6 +647,7 @@ const SimilarityMap: Widget = () => {
             <MenuBar
                 colorBy={colorByKey}
                 sizeBy={sizeByKey}
+                shapeBy={shapeByKey}
                 placeBy={placeByColumnKeys}
                 filter={filter}
                 embeddableColumns={embeddableColumnKeys}
@@ -583,6 +659,7 @@ const SimilarityMap: Widget = () => {
                 pcaNormalization={pcaNormalization ?? 'none'}
                 onChangeColorBy={setStoredColorByKey}
                 onChangeSizeBy={setSizeByKey}
+                onChangeShapeBy={setShapeByKey}
                 onChangePlaceBy={setStoredPlaceByColumnKeys}
                 onChangeFilter={setFilter}
                 onChangeReductionMethod={setReductionMethod}

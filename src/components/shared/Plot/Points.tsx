@@ -3,10 +3,11 @@ import _ from 'lodash';
 import { useCallback, useContext, useEffect, useMemo } from 'react';
 import { theme } from 'twin.macro';
 import PlotContext from './PlotContext';
-import { MergeStrategy, Point2d } from './types';
+import { MergeStrategy, Point2d, Shape } from './types';
 
-function drawCircle(
+function drawShape(
     ctx: CanvasRenderingContext2D,
+    shape: Shape,
     point: Point2d,
     color: string,
     size: number,
@@ -18,9 +19,56 @@ function drawCircle(
     const [x, y] = transform.apply([xScale(point[0]) ?? 0, yScale(point[1]) ?? 0]);
 
     ctx.globalAlpha = opacity;
-    ctx.beginPath();
     ctx.fillStyle = color;
-    ctx.arc(x, y, size, 0, 2 * Math.PI);
+    ctx.beginPath();
+
+    switch (shape) {
+        case 'triangle': {
+            // Equilateral triangle with same visual area as a circle of `size` radius
+            const r = size * 1.25;
+            ctx.moveTo(x, y - r);
+            ctx.lineTo(x + r * Math.sin((2 * Math.PI) / 3), y - r * Math.cos((2 * Math.PI) / 3));
+            ctx.lineTo(x + r * Math.sin((4 * Math.PI) / 3), y - r * Math.cos((4 * Math.PI) / 3));
+            ctx.closePath();
+            break;
+        }
+        case 'square': {
+            const s = size * 1.6;
+            ctx.rect(x - s / 2, y - s / 2, s, s);
+            break;
+        }
+        case 'diamond': {
+            const r = size * 1.25;
+            ctx.moveTo(x, y - r);
+            ctx.lineTo(x + r, y);
+            ctx.lineTo(x, y + r);
+            ctx.lineTo(x - r, y);
+            ctx.closePath();
+            break;
+        }
+        case 'cross': {
+            const r = size * 1.25;
+            const t = r * 0.4; // arm half-thickness
+            ctx.moveTo(x - r, y - t);
+            ctx.lineTo(x - t, y - t);
+            ctx.lineTo(x - t, y - r);
+            ctx.lineTo(x + t, y - r);
+            ctx.lineTo(x + t, y - t);
+            ctx.lineTo(x + r, y - t);
+            ctx.lineTo(x + r, y + t);
+            ctx.lineTo(x + t, y + t);
+            ctx.lineTo(x + t, y + r);
+            ctx.lineTo(x - t, y + r);
+            ctx.lineTo(x - t, y + t);
+            ctx.lineTo(x - r, y + t);
+            ctx.closePath();
+            break;
+        }
+        case 'circle':
+        default:
+            ctx.arc(x, y, size, 0, 2 * Math.PI);
+            break;
+    }
     ctx.fill();
 }
 
@@ -35,6 +83,7 @@ function drawPoints(
     points: Point2d[],
     colors: string[],
     sizes: number[],
+    shapes: Shape[],
     hidden: boolean[],
     selected: boolean[],
     isPointHighlighted: (index: number) => boolean,
@@ -43,10 +92,13 @@ function drawPoints(
     yScale: d3.ScaleContinuousNumeric<number, number>,
     transform: d3.ZoomTransform
 ) {
+    const shapeOf = (i: number): Shape => shapes[i] ?? 'circle';
+
     for (let i = 0; i < points.length; i++) {
         if (!hidden[i]) continue;
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             colors[i],
             sizes[i] * 5.0,
@@ -60,8 +112,9 @@ function drawPoints(
 
     for (let i = 0; i < points.length; i++) {
         if (isPointHighlighted(i) || hidden[i] || selected[i]) continue;
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             colors[i],
             sizes[i] * 5.0,
@@ -74,8 +127,9 @@ function drawPoints(
 
     for (let i = 0; i < points.length; i++) {
         if (isPointHighlighted(i) || hidden[i] || !selected[i]) continue;
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             theme`colors.red.400`,
             sizes[i] * 5.0 + 2.0,
@@ -88,8 +142,9 @@ function drawPoints(
 
     for (let i = 0; i < points.length; i++) {
         if (isPointHighlighted(i) || hidden[i] || !selected[i]) continue;
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             colors[i],
             sizes[i] * 5.0,
@@ -113,8 +168,9 @@ function drawPoints(
         if (!isPointHighlighted(i)) continue;
         const outlineColor = selected[i] ? theme`colors.red.500` : theme`colors.white`;
 
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             outlineColor,
             sizes[i] * 5.0 + 2.0,
@@ -127,8 +183,9 @@ function drawPoints(
 
     for (let i = 0; i < points.length; i++) {
         if (!isPointHighlighted(i)) continue;
-        drawCircle(
+        drawShape(
             ctx,
+            shapeOf(i),
             points[i],
             colors[i],
             sizes[i] * 5.0,
@@ -147,12 +204,20 @@ function clear(ctx: CanvasRenderingContext2D) {
 interface Props {
     colors: string[];
     sizes: number[];
+    shapes?: Shape[];
     selected: boolean[];
     hidden: boolean[];
     onClick?: (index?: number, mergeMode?: MergeStrategy) => void;
 }
 
-const Points = ({ colors, sizes, hidden, selected, onClick }: Props): JSX.Element => {
+const Points = ({
+    colors,
+    sizes,
+    shapes,
+    hidden,
+    selected,
+    onClick,
+}: Props): JSX.Element => {
     const {
         svgRef,
         canvas,
@@ -202,6 +267,7 @@ const Points = ({ colors, sizes, hidden, selected, onClick }: Props): JSX.Elemen
             points,
             colors,
             sizes,
+            shapes ?? [],
             hidden,
             selected,
             isPointHighlighted,
@@ -215,6 +281,7 @@ const Points = ({ colors, sizes, hidden, selected, onClick }: Props): JSX.Elemen
         points,
         colors,
         sizes,
+        shapes,
         hidden,
         selected,
         xScale,

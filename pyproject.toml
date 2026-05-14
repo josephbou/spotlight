@@ -1,6 +1,6 @@
 [project]
 name = "renumics-spotlight"
-version = "1.7.4+custom"
+version = "1.7.5+custom"
 description = "Visualize and maintain datasets to develop and understand data-driven algorithms."
 readme = "README-PyPI.md"
 keywords = [
