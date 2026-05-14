@@ -27,8 +27,14 @@ function drawShape(
             // Equilateral triangle with same visual area as a circle of `size` radius
             const r = size * 1.25;
             ctx.moveTo(x, y - r);
-            ctx.lineTo(x + r * Math.sin((2 * Math.PI) / 3), y - r * Math.cos((2 * Math.PI) / 3));
-            ctx.lineTo(x + r * Math.sin((4 * Math.PI) / 3), y - r * Math.cos((4 * Math.PI) / 3));
+            ctx.lineTo(
+                x + r * Math.sin((2 * Math.PI) / 3),
+                y - r * Math.cos((2 * Math.PI) / 3)
+            );
+            ctx.lineTo(
+                x + r * Math.sin((4 * Math.PI) / 3),
+                y - r * Math.cos((4 * Math.PI) / 3)
+            );
             ctx.closePath();
             break;
         }
